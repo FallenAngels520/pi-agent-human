@@ -1,5 +1,5 @@
-import { completeSimple, type Model, type TextContent } from "@earendil-works/pi-ai";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import { completeSimple, type Model, type TextContent } from "@earendil-works/pi-ai";
 
 /** Explicit, testable criterion for evaluation. */
 export interface JudgmentCriterion {

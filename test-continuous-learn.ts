@@ -1,11 +1,14 @@
 /**
  * Continuous Autonomous Learner — never stops, persists every concept.
  *
- * Usage:
- *   DEEPSEEK_API_KEY=<key> TAVILY_API_KEY=<key> npx tsx test-continuous-learn.ts
+ * Usage: npx tsx test-continuous-learn.ts
  *
  * Press Ctrl+C to stop gracefully (saves state before exit).
  */
+import { config as dotenvConfig } from "dotenv";
+import { resolve } from "node:path";
+dotenvConfig({ path: resolve(process.cwd(), ".env") });
+
 import { AutonomousLearner } from "./packages/domain-agent/src/index.ts";
 
 async function main() {

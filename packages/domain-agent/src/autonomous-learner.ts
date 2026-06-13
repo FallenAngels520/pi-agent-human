@@ -1,24 +1,21 @@
-import { Agent } from "@earendil-works/pi-agent-core";
-import { getModel, getEnvApiKey, streamSimple } from "@earendil-works/pi-ai";
-import type { Model } from "@earendil-works/pi-ai";
+import { resolve } from "node:path";
+import { config as dotenvConfig } from "dotenv";
 
+dotenvConfig({ path: resolve(process.cwd(), ".env") });
+
+import { Agent } from "@earendil-works/pi-agent-core";
+import type { Model } from "@earendil-works/pi-ai";
+import { getEnvApiKey, getModel, streamSimple } from "@earendil-works/pi-ai";
+import type { ContinuousLearningResult, DeepThinkingEngineLike, SessionEntry } from "./continuous-learning-agent.ts";
 import { ContinuousLearningAgent } from "./continuous-learning-agent.ts";
+import type { DeepThinkingInput, DeepThinkingResult } from "./deep-thinking.ts";
+import { DeepThinkingEngine } from "./deep-thinking.ts";
 import { KnowledgeGraph } from "./knowledge-graph.ts";
+import { JsonLongTermMemory } from "./long-term-memory.ts";
 import { createKnowledgeGraphTools } from "./tools/kg-tools.ts";
 import { createSearchTools } from "./tools/search-tools.ts";
 import { createSelfTestTools } from "./tools/test-tools.ts";
-import type {
-	ContinuousLearningConfig,
-	ContinuousLearningResult,
-	DeepThinkingEngineLike,
-	LearnConceptResult,
-	SessionEntry,
-} from "./continuous-learning-agent.ts";
-import type { DeepThinkingInput, DeepThinkingResult } from "./deep-thinking.ts";
-import { DeepThinkingEngine } from "./deep-thinking.ts";
-import { MemoryConsolidator, JsonLongTermMemory } from "./long-term-memory.ts";
-import type { BlindSpot, Perspective, DreamingConfig, DreamingResult } from "./types.ts";
-import { JudgeAgent, type JudgmentCriterion } from "./judge.ts";
+import type { BlindSpot, DreamingConfig, Perspective } from "./types.ts";
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
@@ -50,6 +47,7 @@ export interface AutonomousLearnerConfig {
 	/** Dreaming configuration overrides */
 	dreamingConfig?: Partial<DreamingConfig>;
 	/** Progress callback. Default: console.log. Set to undefined to silence. */
+	kg?: KnowledgeGraph;
 	onProgress?: (msg: string) => void;
 	/** File to persist the knowledge graph */
 	knowledgeGraphFile?: string;
@@ -178,7 +176,7 @@ export class AutonomousLearner {
 		}
 
 		// 2. Build tools
-		const kg = new KnowledgeGraph();
+		const kg = cfg.kg ?? new KnowledgeGraph();
 		const tools = [...createKnowledgeGraphTools(kg), ...createSearchTools(), ...createSelfTestTools(kg)];
 
 		// 3. Resolve API key
@@ -269,7 +267,9 @@ export class AutonomousLearner {
 	}
 
 	/** Get the underlying knowledge graph for inspection */
-	getAgent(): Agent { return this.agent; }
+	getAgent(): Agent {
+		return this.agent;
+	}
 
 	getKnowledgeGraph(): KnowledgeGraph {
 		return this.learner.getKnowledgeGraph();
@@ -325,30 +325,28 @@ export class AutonomousLearner {
 		const goodMatch = relevant.find((r) => r.concept.confidence >= 0.6);
 		if (goodMatch) {
 			const c = goodMatch.concept;
-			const evidence = c.evidence.map((e) => e.type + ": " + e.source).join("\n");
+			const evidence = c.evidence.map((e) => `${e.type}: ${e.source}`).join("\n");
 			return {
-				answer: c.name + ": " + c.description + "\n\nEvidence:\n" + evidence,
+				answer: `${c.name}: ${c.description}\n\nEvidence:\n${evidence}`,
 				confidence: c.confidence,
 				sourceConcepts: [c.name],
 				learned: false,
 			};
 		}
 
-		const topic = question.slice(0, 80).replace(/[?？]/g, '').trim();
-		const seedName = topic.replace(/^(what|how|why|explain|describe|tell me about)\s+/i, '').slice(0, 60);
+		const topic = question.slice(0, 80).replace(/[?？]/g, "").trim();
+		const seedName = topic.replace(/^(what|how|why|explain|describe|tell me about)\s+/i, "").slice(0, 60);
 
 		await this.learn(topic, [seedName]);
 		await this.saveState();
 
 		const updatedConcepts = kg.getAllConcepts();
-		const learned = updatedConcepts.find(
-			(c) => c.name.toLowerCase().includes(seedName.toLowerCase().slice(0, 20)),
-		);
+		const learned = updatedConcepts.find((c) => c.name.toLowerCase().includes(seedName.toLowerCase().slice(0, 20)));
 
 		if (learned) {
-			const evidence = learned.evidence.map((e) => e.type + ": " + e.source).join("\n");
+			const evidence = learned.evidence.map((e) => `${e.type}: ${e.source}`).join("\n");
 			return {
-				answer: "[Just learned] " + learned.name + ": " + learned.description + "\n\nEvidence:\n" + evidence,
+				answer: `[Just learned] ${learned.name}: ${learned.description}\n\nEvidence:\n${evidence}`,
 				confidence: learned.confidence,
 				sourceConcepts: [learned.name],
 				learned: true,
@@ -356,7 +354,7 @@ export class AutonomousLearner {
 		}
 
 		return {
-			answer: "Unable to find or learn about: " + question + ". KG has " + updatedConcepts.length + " concepts.",
+			answer: `Unable to find or learn about: ${question}. KG has ${updatedConcepts.length} concepts.`,
 			confidence: 0,
 			sourceConcepts: [],
 			learned: true,

@@ -40,6 +40,7 @@
 		"@earendil-works/pi-ai": "^0.79.2",
 		"@earendil-works/pi-tui": "^0.79.2",
 		"@earendil-works/pi-domain-agent": "^0.1.0",
+		"dotenv": "^16.4.0",
 		"@silvia-odwyer/photon-node": "0.3.4",
 		"chalk": "5.6.2",
 		"cross-spawn": "7.0.6",

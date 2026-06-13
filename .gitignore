@@ -40,3 +40,9 @@ plans/
 .pi/hf-sessions-backup/
 collect.sh
 .codegraph/
+.tasks/
+.pi/
+.husky/
+.github/
+docs/
+test-output/

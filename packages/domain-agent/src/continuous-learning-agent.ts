@@ -1,10 +1,10 @@
 import { writeFile } from "node:fs/promises";
 import type { Agent } from "@earendil-works/pi-agent-core";
-import { JudgeAgent, type JudgmentCriterion } from "./judge.ts";
 import type { Model } from "@earendil-works/pi-ai";
 import type { DeepThinkingInput, DeepThinkingMode, DeepThinkingResult } from "./deep-thinking.ts";
 import { DreamingEngine } from "./dreaming.ts";
 import { Innovation } from "./innovation.ts";
+import { JudgeAgent, type JudgmentCriterion } from "./judge.ts";
 import { KnowledgeGraph } from "./knowledge-graph.ts";
 import type { LongTermMemoryContext, LongTermMemoryEventType, LongTermMemoryLike } from "./long-term-memory.ts";
 import { tryParseStructuredFindings } from "./parse-result.ts";
@@ -374,7 +374,10 @@ export class ContinuousLearningAgent {
 	}
 
 	async run(onProgress?: (msg: string) => void): Promise<ContinuousLearningResult> {
-		const log = (msg: string) => { this.onProgress?.(msg); onProgress?.(msg); };
+		const log = (msg: string) => {
+			this.onProgress?.(msg);
+			onProgress?.(msg);
+		};
 
 		await this.loadState();
 		let conceptsLearned = 0;
@@ -427,7 +430,9 @@ export class ContinuousLearningAgent {
 
 			const spot = this.pickBlindSpot(blindSpots);
 
-			log(`📍 [${conceptsLearned + 1}/${maxConcepts}] Learning: "${spot.conceptName}" | gap: ${spot.gap.slice(0, 80)}`);
+			log(
+				`📍 [${conceptsLearned + 1}/${maxConcepts}] Learning: "${spot.conceptName}" | gap: ${spot.gap.slice(0, 80)}`,
+			);
 
 			// Phase 1: Learn with perspective rotation + JudgeAgent verification
 			const learnResult = await this.learnConcept(spot);
@@ -450,7 +455,9 @@ export class ContinuousLearningAgent {
 			// Phase 2: SelfTest verification
 			log(`   📝 Self-test...`);
 			const verifyResult = await this.verifyConcept(spot.conceptId);
-			log(`   ${verifyResult.correctAnswers >= verifyResult.totalQuestions * 0.6 ? "✅" : "⚠️"}  Score: ${verifyResult.correctAnswers}/${verifyResult.totalQuestions}`);
+			log(
+				`   ${verifyResult.correctAnswers >= verifyResult.totalQuestions * 0.6 ? "✅" : "⚠️"}  Score: ${verifyResult.correctAnswers}/${verifyResult.totalQuestions}`,
+			);
 			this.sessionLog.push({ type: "verify", conceptName: spot.conceptName, result: verifyResult });
 			await this.recordMemoryEvent({
 				type: "verification_event",
@@ -693,7 +700,7 @@ export class ContinuousLearningAgent {
 			"## Instructions — YOU MUST FOLLOW THESE IN ORDER",
 			"",
 			"STEP 1 (REQUIRED): Call web_search to find authoritative sources about this concept.",
-			'  Search for: official documentation, MDN/TypeScript handbook, reputable tutorials.',
+			"  Search for: official documentation, MDN/TypeScript handbook, reputable tutorials.",
 			"",
 			"STEP 2 (REQUIRED): Call web_fetch on the 2-3 most relevant URLs from search results.",
 			"  Read the full articles to extract detailed, accurate information.",

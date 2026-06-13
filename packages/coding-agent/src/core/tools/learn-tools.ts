@@ -8,13 +8,13 @@
 
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import {
-  BackgroundPool,
-  createCheckLearningTool,
-  createLearnTopicTool,
-  createQueryKnowledgeTool,
-  CronService,
-  HeartbeatRunner,
-  KnowledgeGraph,
+	BackgroundPool,
+	CronService,
+	createCheckLearningTool,
+	createLearnTopicTool,
+	createQueryKnowledgeTool,
+	HeartbeatRunner,
+	KnowledgeGraph,
 } from "@earendil-works/pi-domain-agent";
 
 // ── Shared state ──────────────────────────────────────────────────────────────
@@ -32,69 +32,66 @@ let cron: CronService | null = null;
  * Returns the three tools to register on the agent.
  */
 export function initLearningTools(onProgress?: (msg: string) => void): {
-  tools: AgentTool[];
-  kg: KnowledgeGraph;
-  pools: Map<string, BackgroundPool>;
+	tools: AgentTool[];
+	kg: KnowledgeGraph;
+	pools: Map<string, BackgroundPool>;
 } {
-  sharedKg = new KnowledgeGraph();
-  sharedPools = new Map();
+	sharedKg = new KnowledgeGraph();
+	sharedPools = new Map();
 
-  const tools: AgentTool[] = [
-    createLearnTopicTool(sharedPools, onProgress ?? console.log),
-    createCheckLearningTool(sharedPools),
-    createQueryKnowledgeTool(sharedKg, sharedPools),
-  ];
+	const tools: AgentTool[] = [
+		createLearnTopicTool(sharedPools, sharedKg, onProgress ?? console.log),
+		createCheckLearningTool(sharedPools),
+		createQueryKnowledgeTool(sharedKg, sharedPools),
+	];
 
-  return { tools, kg: sharedKg, pools: sharedPools };
+	return { tools, kg: sharedKg, pools: sharedPools };
 }
 
 /**
  * Start background services (heartbeat + cron).
  * Requires the KG file to exist on disk first.
  */
-export function startLearningBackground(
-  kgFile: string,
-  pools: Map<string, BackgroundPool>,
-): void {
-  if (heartbeat || cron) return; // Already started
+export function startLearningBackground(kgFile: string, pools: Map<string, BackgroundPool>): void {
+	if (heartbeat || cron) return; // Already started
 
-  const pool = new BackgroundPool({
-    domain: "heartbeat",
-    provider: "deepseek",
-    modelId: "deepseek-v4-pro",
-    maxConcurrency: 1,
-  });
+	const pool = new BackgroundPool({
+		domain: "heartbeat",
+		provider: "deepseek",
+		modelId: "deepseek-v4-pro",
+		maxConcurrency: 1,
+	});
 
-  heartbeat = new HeartbeatRunner({
-    kgFile,
-    pool,
-    interval: 1800,   // 30 minutes
-    activeHours: [9, 22],
-    blindSpotThreshold: 0.6,
-  });
-  heartbeat.start();
+	heartbeat = new HeartbeatRunner({
+		kgFile,
+		pool,
+		interval: 1800, // 30 minutes
+		activeHours: [9, 22],
+		blindSpotThreshold: 0.6,
+	});
+	heartbeat.start();
 
-  cron = new CronService({
-    cronFile: ".pi/cron.json",
-    pool,
-  });
-  cron.start();
+	cron = new CronService({
+		cronFile: ".pi/cron.json",
+		pool,
+	});
+	cron.start();
 }
 
 /** Stop background services. */
 export function stopLearningBackground(): void {
-  heartbeat?.stop();
-  cron?.stop();
-  heartbeat = null;
-  cron = null;
+	heartbeat?.stop();
+	cron?.stop();
+	heartbeat = null;
+	cron = null;
 }
 
 /** Get the shared knowledge graph. */
 export function getSharedKg(): KnowledgeGraph | null {
-  return sharedKg;
+	return sharedKg;
 }
 
 /** Get the shared pool map. */
 export function getSharedPools(): Map<string, BackgroundPool> | null {
-  return sharedPools;
+	return sharedPools;
 }

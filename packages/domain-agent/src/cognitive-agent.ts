@@ -8,8 +8,8 @@ import { LearningLoop } from "./learning-loop.ts";
 import { parseRoundResult } from "./parse-result.ts";
 import { SelfTest } from "./self-test.ts";
 import { createKnowledgeGraphTools } from "./tools/kg-tools.ts";
-import { createSearchTools } from "./tools/search-tools.ts";
 import type { RunPromptFn } from "./tools/search-tools.ts";
+import { createSearchTools } from "./tools/search-tools.ts";
 import { createSelfTestTools } from "./tools/test-tools.ts";
 import type { DreamingConfig, DreamingResult, Playbook, RoundResult, SelfTestResult } from "./types.ts";
 

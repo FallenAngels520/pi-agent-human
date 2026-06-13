@@ -32,10 +32,10 @@ export { Innovation } from "./innovation.ts";
 // JudgeAgent (maker/checker verification)
 export type {
 	CriterionVerdict,
+	JudgeConfig,
 	Judgment,
 	JudgmentCriterion,
 	JudgmentEvidence,
-	JudgeConfig,
 } from "./judge.ts";
 export { collectAgentWork, JudgeAgent } from "./judge.ts";
 export { KnowledgeGraph } from "./knowledge-graph.ts";
@@ -77,33 +77,33 @@ export { RecurrentBlock, shouldStop } from "./recurrent-block.ts";
 export { SelfTest } from "./self-test.ts";
 export type { GraftingOutput, SynthesisAgentLike, SynthesisOutput } from "./synthesis.ts";
 export { KnowledgeSynthesis } from "./synthesis.ts";
+export type { Task, TaskProgress } from "./task-board.ts";
+export { TaskBoard } from "./task-board.ts";
+export type { CronServiceConfig, HeartbeatConfig } from "./tools/heartbeat-cron.ts";
+export { CronService, HeartbeatRunner } from "./tools/heartbeat-cron.ts";
 export { createInnovationTools } from "./tools/innovation-tools.ts";
 export { createKnowledgeGraphTools } from "./tools/kg-tools.ts";
+export type { LearnerConfig, LearningResult } from "./tools/learn-tool.ts";
+export {
+	BackgroundPool,
+	createCheckLearningTool,
+	createLearnTopicTool,
+	createQueryKnowledgeTool,
+} from "./tools/learn-tool.ts";
+export type { StuckRecord } from "./tools/learning-registry.ts";
+export { LearningRegistry } from "./tools/learning-registry.ts";
+export type {
+	BootstrapFiles,
+	LearnerPromptContext,
+	MainPromptContext,
+} from "./tools/prompt-assembly.ts";
+export {
+	buildLearnerSystemPrompt,
+	buildMainSystemPrompt,
+	loadBootstrap,
+} from "./tools/prompt-assembly.ts";
 export type { RunPromptFn, SearchToolsOptions } from "./tools/search-tools.ts";
 export { createSearchTools, createWebFetchTool, createWebSearchTool } from "./tools/search-tools.ts";
 export { createSynthesisTools } from "./tools/synthesis-tools.ts";
 export { createSelfTestTools } from "./tools/test-tools.ts";
-export type { LearnerConfig, LearningResult } from "./tools/learn-tool.ts";
-export {
-  BackgroundPool,
-  createCheckLearningTool,
-  createLearnTopicTool,
-  createQueryKnowledgeTool,
-} from "./tools/learn-tool.ts";
-export { LearningRegistry } from "./tools/learning-registry.ts";
-export type { StuckRecord } from "./tools/learning-registry.ts";
-export { TaskBoard } from "./task-board.ts";
-export type { Task, TaskProgress } from "./task-board.ts";
-export { CronService, HeartbeatRunner } from "./tools/heartbeat-cron.ts";
-export type { CronServiceConfig, HeartbeatConfig } from "./tools/heartbeat-cron.ts";
-export {
-  buildLearnerSystemPrompt,
-  buildMainSystemPrompt,
-  loadBootstrap,
-} from "./tools/prompt-assembly.ts";
-export type {
-  BootstrapFiles,
-  LearnerPromptContext,
-  MainPromptContext,
-} from "./tools/prompt-assembly.ts";
 export * from "./types.ts";

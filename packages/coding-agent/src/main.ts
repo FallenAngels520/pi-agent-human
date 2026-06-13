@@ -705,10 +705,9 @@ export async function main(args: string[], options?: MainOptions) {
 		// Register self-evolving learning tools
 		try {
 			const { initLearningTools } = await import("./core/tools/learn-tools.ts");
-			const { tools: learningTools, promptGuidelines } = initLearningTools();
+			const { tools: learningTools } = initLearningTools();
 			const currentTools = created.session.agent.state.tools;
 			created.session.agent.state.tools = [...currentTools, ...learningTools];
-		created.session.agent.state.systemPrompt = `${created.session.agent.state.systemPrompt}\n\n${promptGuidelines}`;
 		} catch {
 			// Domain-agent not available — learning tools skipped silently
 		}
@@ -726,6 +725,7 @@ export async function main(args: string[], options?: MainOptions) {
 		sessionManager,
 	});
 	time("createAgentSessionRuntime");
+	// Inject self-evolving knowledge system guidelines into finalized system prompt	try {		const { initLearningTools } = await import("./core/tools/learn-tools.ts");		const { promptGuidelines } = initLearningTools();		const sp = runtime.session.agent.state.systemPrompt;		runtime.session.agent.state.systemPrompt = `${sp}nn${promptGuidelines}`;	} catch {}
 	const { services, session, modelFallbackMessage } = runtime;
 	const { settingsManager, modelRegistry, resourceLoader } = services;
 	configureHttpDispatcher(settingsManager.getHttpIdleTimeoutMs());

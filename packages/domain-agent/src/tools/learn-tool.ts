@@ -348,6 +348,9 @@ export function createLearnTopicTool(
 				onProgress?.(
 					`✅ Learning complete: ${result.domain} — ${result.tasks_completed} tasks in ${(result.duration_ms / 1000).toFixed(0)}s`,
 				);
+				if (sharedKg) {
+					try { sharedKg.saveToFile(".pi/knowledge-graph.json"); } catch {}
+				}
 			});
 
 			return {

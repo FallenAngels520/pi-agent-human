@@ -38,6 +38,7 @@ export function initLearningTools(onProgress?: (msg: string) => void): {
   if (_cachedResult) return _cachedResult;
 
   sharedKg = new KnowledgeGraph();
+  try { sharedKg.loadFromFile(".pi/knowledge-graph.json"); } catch {}
   sharedPools = new Map();
 
   const tools: AgentTool[] = [

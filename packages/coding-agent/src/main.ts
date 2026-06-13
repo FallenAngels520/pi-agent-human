@@ -705,9 +705,10 @@ export async function main(args: string[], options?: MainOptions) {
 		// Register self-evolving learning tools
 		try {
 			const { initLearningTools } = await import("./core/tools/learn-tools.ts");
-			const { tools: learningTools } = initLearningTools();
+			const { tools: learningTools, promptGuidelines } = initLearningTools();
 			const currentTools = created.session.agent.state.tools;
 			created.session.agent.state.tools = [...currentTools, ...learningTools];
+		created.session.agent.state.systemPrompt = `${created.session.agent.state.systemPrompt}\n\n${promptGuidelines}`;
 		} catch {
 			// Domain-agent not available — learning tools skipped silently
 		}

@@ -90,7 +90,6 @@ export class BackgroundPool {
 		const runOneLearner = (name: string) => {
 			activeCount++;
 			// Each learner runs in its own async context (microtask-queued)
-			const _learner = this.createSingleLearner(domain, name);
 
 			const tick = () => {
 				const unclaimed = this.taskBoard.scanUnclaimed(domain);

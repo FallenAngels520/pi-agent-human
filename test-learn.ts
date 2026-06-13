@@ -22,7 +22,11 @@ async function main() {
     practicalApplicationEnabled: false,
     frontierExpansionEnabled: false,
     dreamingEnabled: true,
-    onProgress: console.log, // built-in progress — just works
+    onProgress: console.log,
+    // Persistence — enables continuous learning across sessions
+    knowledgeGraphFile: ".pi/knowledge-graph.json",
+    memoryFile: ".pi/long-term-memory.json",
+    checkpointFile: ".pi/checkpoint.json",
   });
 
   console.log("\n[1] Init...");
@@ -72,7 +76,11 @@ async function main() {
     console.log(`  ${bar} ${c.name} | conf=${c.confidence.toFixed(2)} | ${c.status} | evidence=${c.evidence.length}`);
   }
 
-  console.log("\n✅ Done!");
+  // Save state for continuous learning
+  await learner.saveState();
+  console.log("📁 Knowledge saved to .pi/");
+
+  console.log("\n✅ Done! Run test-continuous-learn.ts to continue.");
 }
 
 main().catch((err) => {

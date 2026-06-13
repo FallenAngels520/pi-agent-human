@@ -285,6 +285,83 @@ export class AutonomousLearner {
 		return this.learner.getBlindSpots();
 	}
 
+	/**
+	 * Query the knowledge graph for an answer to a question.
+	 *
+	 * If the KG has high-confidence knowledge about the topic, returns it
+	 * immediately. Otherwise triggers a learning session before answering.
+	 */
+	async query(question: string): Promise<{
+		answer: string;
+		confidence: number;
+		sourceConcepts: string[];
+		learned: boolean;
+	}> {
+		if (!this.learner) await this.init();
+
+		const kg = this.learner.getKnowledgeGraph();
+		const concepts = kg.getAllConcepts();
+
+		const questionLower = question.toLowerCase();
+		const questionWords = new Set(questionLower.split(/\s+/));
+
+		const relevant = concepts
+			.map((c) => {
+				const nameLower = c.name.toLowerCase();
+				const descLower = c.description.toLowerCase();
+				const nameWords = new Set(nameLower.split(/\s+/));
+				const descWords = new Set(descLower.split(/\s+/));
+				let overlap = 0;
+				for (const w of questionWords) {
+					if (w.length < 3) continue;
+					if (nameWords.has(w) || descWords.has(w)) overlap++;
+					else if (nameLower.includes(w) || descLower.includes(w)) overlap += 0.5;
+				}
+				return { concept: c, score: overlap };
+			})
+			.filter((r) => r.score > 0)
+			.sort((a, b) => b.concept.confidence * b.score - a.concept.confidence * a.score);
+
+		const goodMatch = relevant.find((r) => r.concept.confidence >= 0.6);
+		if (goodMatch) {
+			const c = goodMatch.concept;
+			const evidence = c.evidence.map((e) => e.type + ": " + e.source).join("\n");
+			return {
+				answer: c.name + ": " + c.description + "\n\nEvidence:\n" + evidence,
+				confidence: c.confidence,
+				sourceConcepts: [c.name],
+				learned: false,
+			};
+		}
+
+		const topic = question.slice(0, 80).replace(/[?？]/g, '').trim();
+		const seedName = topic.replace(/^(what|how|why|explain|describe|tell me about)\s+/i, '').slice(0, 60);
+
+		await this.learn(topic, [seedName]);
+		await this.saveState();
+
+		const updatedConcepts = kg.getAllConcepts();
+		const learned = updatedConcepts.find(
+			(c) => c.name.toLowerCase().includes(seedName.toLowerCase().slice(0, 20)),
+		);
+
+		if (learned) {
+			const evidence = learned.evidence.map((e) => e.type + ": " + e.source).join("\n");
+			return {
+				answer: "[Just learned] " + learned.name + ": " + learned.description + "\n\nEvidence:\n" + evidence,
+				confidence: learned.confidence,
+				sourceConcepts: [learned.name],
+				learned: true,
+			};
+		}
+
+		return {
+			answer: "Unable to find or learn about: " + question + ". KG has " + updatedConcepts.length + " concepts.",
+			confidence: 0,
+			sourceConcepts: [],
+			learned: true,
+		};
+	}
 	/** Save knowledge graph and memory to disk */
 	async saveState(): Promise<void> {
 		await this.learner.saveState();

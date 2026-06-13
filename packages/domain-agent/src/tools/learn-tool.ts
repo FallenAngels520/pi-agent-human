@@ -57,119 +57,114 @@ export class BackgroundPool {
 		this.config = {
 			maxRounds: 5,
 			confidenceThreshold: 0.8,
-			maxConcurrency: 2,
 			apiKey: "",
 			...config,
+			maxConcurrency: Math.min(config.maxConcurrency ?? 2, Number.parseInt(process.env.PI_MAX_LEARNERS ?? "4", 10)),
 		};
 	}
 
 	/** Submit a learning session. Starts N learners. Returns immediately. */
-	submit(
-		topic: string,
-		_concepts: Array<string | { name: string; prerequisites: string[] }>,
-		subTasks?: Array<{ id: number; subject: string; blockedBy: number[] }>,
-	): void {
-		if (this.running) return;
+	/** Submit a learning session. Each concept runs in its own parallel learner slot. */
+		submit(
+			topic: string,
+			concepts: Array<string | { name: string; prerequisites: string[] }>,
+			subTasks?: Array<{ id: number; subject: string; blockedBy: number[] }>,
+		): void {
+			if (this.running) return;
 
-		const domain = this.config.domain ?? topic.replace(/\s+/g, "-").toLowerCase();
+			const domain = this.config.domain ?? topic.replace(/\s+/g, "-").toLowerCase();
 
-		// Build task board
-		if (subTasks && subTasks.length > 0) {
-			for (const st of subTasks) {
-				this.taskBoard.create(domain, st.subject, st.blockedBy);
+			// Build task board — one task per concept
+			if (subTasks && subTasks.length > 0) {
+				for (const st of subTasks) {
+					this.taskBoard.create(domain, st.subject, st.blockedBy);
+				}
+			} else {
+				for (const c of concepts) {
+					const name = typeof c === "string" ? c : c.name;
+					this.taskBoard.create(domain, name);
+				}
 			}
-		}
 
-		this.running = true;
-		const startTime = Date.now();
-		let activeCount = 0;
-		const maxConcurrency = this.config.maxConcurrency ?? 2;
+			const totalTasks = this.taskBoard.listAll(domain).length;
+			this.running = true;
+			const startTime = Date.now();
+			const maxConcurrency = this.config.maxConcurrency ?? 2;
+			const log = (msg: string) => this.config.onProgress?.(msg);
+			let completedCount = 0;
 
-		const log = (msg: string) => this.config.onProgress?.(msg);
+			log(`🎓 Spawning up to ${maxConcurrency} parallel learners for ${totalTasks} concepts`);
 
-		const runOneLearner = (name: string) => {
-			activeCount++;
-			// Each learner runs in its own async context (microtask-queued)
-
-			const tick = () => {
+			/** Spawn a learner slot — claims one task, learns it, then claims the next. */
+			const spawnNext = (learnerIndex: number): void => {
 				const unclaimed = this.taskBoard.scanUnclaimed(domain);
-				if (unclaimed.length === 0) {
-					activeCount--;
-					if (activeCount === 0) {
+				const available = unclaimed.filter(
+					(t) => !this.registry.isBeingLearned(t.subject),
+				);
+
+				if (available.length === 0) {
+					completedCount = this.taskBoard.getProgress(domain).completed;
+					if (completedCount >= totalTasks) {
 						this.running = false;
 						const result: LearningResult = {
 							domain,
-							tasks_completed: this.taskBoard.getProgress(domain).completed,
-							concepts_learned: 0,
+							tasks_completed: completedCount,
+							concepts_learned: completedCount,
 							total_rounds: 0,
 							duration_ms: Date.now() - startTime,
 						};
+						log(`✅ All ${totalTasks} concepts learned in ${((Date.now() - startTime) / 1000).toFixed(0)}s`);
 						for (const cb of this.completedCallbacks) cb(result);
 					}
 					return;
 				}
 
-				// Scenario 1: skip if another learner is already on this concept
-				const task = unclaimed[0];
-				const otherLearner = this.registry.isBeingLearned(task.subject);
-				if (otherLearner && otherLearner !== name) {
-					log(`[${name}] ⏭️ Skip "${task.subject}" — ${otherLearner} is already learning it`);
-					tick();
-					return;
-				}
-
-				const claimResult = this.taskBoard.claim(domain, task.id, name);
+				const task = available[0];
+				const claimResult = this.taskBoard.claim(domain, task.id, `learner-${learnerIndex}`);
 				if (!claimResult.ok) {
-					tick();
+					setTimeout(() => spawnNext(learnerIndex), 10);
 					return;
 				}
 
-				this.registry.register(name, claimResult.task.subject);
-				log(`[${name}] 📍 Learning: "${claimResult.task.subject}"`);
+				const learnerName = `learner-${String.fromCharCode(97 + learnerIndex)}`;
+				this.registry.register(learnerName, claimResult.task.subject);
 
-				// Scenario 2: check stuck hints from previous attempts
 				const hints = this.registry.getStuckHints(claimResult.task.subject);
-				if (hints) log(`[${name}] 💡 Hints:\n${hints}`);
+				log(`[${learnerName}] 📍 Learning: "${claimResult.task.subject}"${hints ? " (has hints)" : ""}`);
 
 				this.runLearningRound(domain, claimResult.task.subject, [claimResult.task.subject])
 					.then((roundResult) => {
 						if (roundResult && roundResult.confidence < 0.5) {
-							this.registry.markStuck(name, claimResult.task.subject, {
+							this.registry.markStuck(learnerName, claimResult.task.subject, {
 								confidence: roundResult.confidence,
 								findings: roundResult.findings ?? "",
 								uncertainties: roundResult.uncertainties ?? "",
 							});
-							log(
-								`[${name}] 📝 Left hints for "${claimResult.task.subject}" (conf=${roundResult.confidence.toFixed(2)})`,
-							);
+							log(`[${learnerName}] 📝 Stuck on "${claimResult.task.subject}" (conf=${roundResult.confidence.toFixed(2)}) - hints saved`);
 						}
 						this.registry.complete(claimResult.task.subject);
 						this.taskBoard.update(domain, task.id, "completed");
-						log(`[${name}] ✅ Completed: "${claimResult.task.subject}"`);
-						tick();
+						completedCount = this.taskBoard.getProgress(domain).completed;
+						log(`[${learnerName}] ✅ ${completedCount}/${totalTasks}: "${claimResult.task.subject}"`);
+						spawnNext(learnerIndex);
 					})
 					.catch((err) => {
-						this.registry.markStuck(name, claimResult.task.subject, {
-							confidence: 0,
-							findings: "",
-							uncertainties: String(err),
+						this.registry.markStuck(learnerName, claimResult.task.subject, {
+							confidence: 0, findings: "", uncertainties: String(err),
 						});
 						this.registry.complete(claimResult.task.subject);
 						this.taskBoard.update(domain, task.id, "failed");
-						log(`[${name}] ❌ Failed: "${claimResult.task.subject}" — ${String(err)}`);
-						tick();
+						completedCount = this.taskBoard.getProgress(domain).completed;
+						log(`[${learnerName}] ❌ Failed: "${claimResult.task.subject}" — ${String(err)}`);
+						spawnNext(learnerIndex);
 					});
 			};
 
-			tick();
-		};
-
-		// Launch multiple learners concurrently
-		for (let i = 0; i < maxConcurrency; i++) {
-			runOneLearner(`learner-${String.fromCharCode(97 + i)}`); // learner-a, learner-b, ...
+			// Launch initial batch of parallel learner slots
+			for (let i = 0; i < maxConcurrency; i++) {
+				spawnNext(i);
+			}
 		}
-	}
-
 	/** Register a callback for when all learners complete. */
 	onComplete(callback: (result: LearningResult) => void): void {
 		this.completedCallbacks.push(callback);

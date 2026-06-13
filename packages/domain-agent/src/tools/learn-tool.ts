@@ -471,18 +471,24 @@ export function createQueryKnowledgeTool(
 			const questionLower = question.toLowerCase();
 			const concepts = kg.getAllConcepts();
 
-			// Find matching concepts via keyword overlap
-			const questionWords = new Set(questionLower.split(/\s+/));
+			// Tokenize: whitespace + CJK punctuation
+			const tokens = questionLower
+				.split(/[\s,，。、；;：:！!？?]+/)
+				.filter((t) => t.length >= 2);
 			const relevant = concepts
 				.map((c) => {
 					const nameLower = c.name.toLowerCase();
 					const descLower = c.description.toLowerCase();
-					let overlap = 0;
-					for (const w of questionWords) {
-						if (w.length < 3) continue;
-						if (nameLower.includes(w) || descLower.includes(w)) overlap++;
+					let score = 0;
+					// Token match: each token in name=2pts, in description=1pt
+					for (const t of tokens) {
+						if (nameLower.includes(t)) score += 2;
+						if (descLower.includes(t)) score += 1;
 					}
-					return { concept: c, score: overlap };
+					// Direct substring boost
+					if (nameLower.includes(questionLower) || questionLower.includes(nameLower)) score += 5;
+					if (descLower.includes(questionLower)) score += 3;
+					return { concept: c, score };
 				})
 				.filter((r) => r.score > 0)
 				.sort((a, b) => b.concept.confidence * b.score - a.concept.confidence * a.score);

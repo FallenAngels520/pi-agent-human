@@ -265,6 +265,7 @@ export class BackgroundPool {
 			const allConcepts = this.config.kg!.getAllConcepts();
 			console.log("[DEBUG] runLearningRound RETURNING, kgSize=" + allConcepts.length + ", concept=" + conceptName);
 			console.log("[DEBUG] runLearningRound RETURNING, kgSize=" + allConcepts.length + ", concept=" + conceptName);
+			console.log("[DEBUG] runLearningRound RETURNING, kgSize=" + allConcepts.length + ", concept=" + conceptName);
 			console.log("[DEBUG] runLearningRound RETURNING, kgSize=" + allConcepts.length + ", conceptName=" + conceptName);
 			const updated = allConcepts.find((c) => c.name.toLowerCase() === conceptName.toLowerCase());
 			return {

@@ -66,7 +66,7 @@ export class BackgroundPool {
 	/** Submit a learning session. Starts N learners. Returns immediately. */
 	submit(
 		topic: string,
-		_concepts: Array<string | { name: string; prerequisites: string[] }>,
+		concepts: Array<string | { name: string; prerequisites: string[] }>,
 		subTasks?: Array<{ id: number; subject: string; blockedBy: number[] }>,
 	): void {
 		if (this.running) return;
@@ -77,6 +77,10 @@ export class BackgroundPool {
 		if (subTasks && subTasks.length > 0) {
 			for (const st of subTasks) {
 				this.taskBoard.create(domain, st.subject, st.blockedBy);
+			}
+		} else {
+			for (const c of concepts) {
+				this.taskBoard.create(domain, typeof c === "string" ? c : c.name);
 			}
 		}
 

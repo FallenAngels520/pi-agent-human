@@ -27,12 +27,16 @@ let cron: CronService | null = null;
  * Initialize the learning subsystem. Call once at session start.
  * Returns tools, shared state, and prompt guidelines for the system prompt.
  */
+let _cachedResult: ReturnType<typeof initLearningTools> | null = null;
+
 export function initLearningTools(onProgress?: (msg: string) => void): {
   tools: AgentTool[];
   kg: KnowledgeGraph;
   pools: Map<string, BackgroundPool>;
   promptGuidelines: string;
 } {
+  if (_cachedResult) return _cachedResult;
+
   sharedKg = new KnowledgeGraph();
   sharedPools = new Map();
 
@@ -69,7 +73,9 @@ export function initLearningTools(onProgress?: (msg: string) => void): {
     "  → wait for completion → query_knowledge again → answer with sources",
   ].join("\n");
 
-  return { tools, kg: sharedKg, pools: sharedPools, promptGuidelines };
+  const result = { tools, kg: sharedKg, pools: sharedPools, promptGuidelines };
+  _cachedResult = result;
+  return result;
 }
 
 /** Start background services (heartbeat + cron). */

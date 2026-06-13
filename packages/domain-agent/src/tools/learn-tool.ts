@@ -6,6 +6,7 @@ import type { Static } from "typebox";
 import { Type } from "typebox";
 import { TaskBoard } from "../task-board.ts";
 import type { KnowledgeGraph } from "../knowledge-graph.ts";
+import { LearningRegistry } from "./learning-registry.ts";
 
 // ── BackgroundPool ────────────────────────────────────────────────────────────
 
@@ -49,6 +50,7 @@ export class BackgroundPool {
   private running = false;
   private completedCallbacks: Array<(result: LearningResult) => void> = [];
   private taskBoard = new TaskBoard();
+  private registry = new LearningRegistry();
 
   constructor(config: LearnerConfig) {
     this.config = {
@@ -92,14 +94,13 @@ export class BackgroundPool {
       const tick = () => {
         const unclaimed = this.taskBoard.scanUnclaimed(domain);
         if (unclaimed.length === 0) {
-          // No more work
           activeCount--;
           if (activeCount === 0) {
             this.running = false;
             const result: LearningResult = {
               domain,
               tasks_completed: this.taskBoard.getProgress(domain).completed,
-              concepts_learned: 0, // filled by AutonomousLearner
+              concepts_learned: 0,
               total_rounds: 0,
               duration_ms: Date.now() - startTime,
             };
@@ -108,24 +109,50 @@ export class BackgroundPool {
           return;
         }
 
+        // Scenario 1: skip if another learner is already on this concept
         const task = unclaimed[0];
-        const claimResult = this.taskBoard.claim(domain, task.id, name);
-        if (!claimResult.ok) {
-          // Contention — another learner got it. Retry.
+        const otherLearner = this.registry.isBeingLearned(task.subject);
+        if (otherLearner && otherLearner !== name) {
+          log(`[${name}] ⏭️ Skip "${task.subject}" — ${otherLearner} is already learning it`);
           tick();
           return;
         }
 
+        const claimResult = this.taskBoard.claim(domain, task.id, name);
+        if (!claimResult.ok) {
+          tick();
+          return;
+        }
+
+        this.registry.register(name, claimResult.task.subject);
         log(`[${name}] 📍 Learning: "${claimResult.task.subject}"`);
 
-        // Use AutonomousLearner for the actual learning
+        // Scenario 2: check stuck hints from previous attempts
+        const hints = this.registry.getStuckHints(claimResult.task.subject);
+        if (hints) log(`[${name}] 💡 Hints:\n${hints}`);
+
         this.runLearningRound(domain, claimResult.task.subject, [claimResult.task.subject])
-          .then(() => {
+          .then((roundResult) => {
+            if (roundResult && roundResult.confidence < 0.5) {
+              this.registry.markStuck(name, claimResult.task.subject, {
+                confidence: roundResult.confidence,
+                findings: roundResult.findings ?? "",
+                uncertainties: roundResult.uncertainties ?? "",
+              });
+              log(`[${name}] 📝 Left hints for "${claimResult.task.subject}" (conf=${roundResult.confidence.toFixed(2)})`);
+            }
+            this.registry.complete(claimResult.task.subject);
             this.taskBoard.update(domain, task.id, "completed");
             log(`[${name}] ✅ Completed: "${claimResult.task.subject}"`);
-            tick(); // Try next task
+            tick();
           })
           .catch((err) => {
+            this.registry.markStuck(name, claimResult.task.subject, {
+              confidence: 0,
+              findings: "",
+              uncertainties: String(err),
+            });
+            this.registry.complete(claimResult.task.subject);
             this.taskBoard.update(domain, task.id, "failed");
             log(`[${name}] ❌ Failed: "${claimResult.task.subject}" — ${String(err)}`);
             tick();
@@ -204,7 +231,7 @@ export class BackgroundPool {
     _domain: string,
     _conceptName: string,
     _concepts: string[],
-  ): Promise<void> {
+  ): Promise<{ confidence: number; findings: string; uncertainties: string }> {
     // This is a placeholder — the actual learning is triggered by
     // the Learner agent's own tool calls (web_search → web_fetch → add_concept).
     // The AutonomousLearner orchestration happens via the prompt instructions.
@@ -215,7 +242,7 @@ export class BackgroundPool {
     //
     // Full integration with AutonomousLearner's multi-round learning
     // is the next implementation step.
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100)); return { confidence: 0.75, findings: "", uncertainties: "" };
   }
 }
 
@@ -444,7 +471,9 @@ export function createQueryKnowledgeTool(
       // Check if currently learning
       if (pools) {
         for (const [domain, pool] of pools) {
-          if (pool.isRunning() && domain.includes(questionLower.slice(0, 10))) {
+          const domainWords = domain.split(/[\s-]+/).filter((w) => w.length > 2);
+          const anyWordMatches = domainWords.some((dw) => questionLower.includes(dw));
+          if (pool.isRunning() && anyWordMatches) {
             const progress = pool.getTaskBoard().getProgress(domain);
             return {
               content: [

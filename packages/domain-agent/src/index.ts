@@ -90,6 +90,8 @@ export {
   createLearnTopicTool,
   createQueryKnowledgeTool,
 } from "./tools/learn-tool.ts";
+export { LearningRegistry } from "./tools/learning-registry.ts";
+export type { StuckRecord } from "./tools/learning-registry.ts";
 export { TaskBoard } from "./task-board.ts";
 export type { Task, TaskProgress } from "./task-board.ts";
 export { CronService, HeartbeatRunner } from "./tools/heartbeat-cron.ts";

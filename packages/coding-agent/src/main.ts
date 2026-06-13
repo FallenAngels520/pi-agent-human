@@ -702,6 +702,16 @@ export async function main(args: string[], options?: MainOptions) {
 			created.session.setThinkingLevel(created.session.thinkingLevel);
 		}
 
+		// Register self-evolving learning tools
+		try {
+			const { initLearningTools } = await import("./core/tools/learn-tools.ts");
+			const { tools: learningTools } = initLearningTools();
+			const currentTools = created.session.agent.state.tools;
+			created.session.agent.state.tools = [...currentTools, ...learningTools];
+		} catch {
+			// Domain-agent not available — learning tools skipped silently
+		}
+
 		return {
 			...created,
 			services,

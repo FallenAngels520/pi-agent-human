@@ -1,0 +1,37 @@
+{
+	"name": "@earendil-works/pi-domain-agent",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Self-evolving domain expert agent with long-term memory, knowledge graph, and autonomous learning",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./*": "./src/*.ts"
+	},
+	"scripts": {
+		"check": "npx tsgo --noEmit",
+		"test": "npx vitest run"
+	},
+	"dependencies": {
+		"@earendil-works/pi-agent-core": "*",
+		"@earendil-works/pi-ai": "*",
+		"typebox": "1.1.38"
+	},
+	"keywords": [
+		"ai",
+		"agent",
+		"learning",
+		"knowledge-graph",
+		"self-evolving"
+	],
+	"author": "",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/earendil-works/pi.git",
+		"directory": "packages/domain-agent"
+	},
+	"engines": {
+		"node": ">=22.19.0"
+	}
+}

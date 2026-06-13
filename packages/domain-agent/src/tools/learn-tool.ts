@@ -133,7 +133,10 @@ export class BackgroundPool {
 				log(`[${learnerName}] 📍 Learning: "${claimResult.task.subject}"${hints ? " (has hints)" : ""}`);
 
 				this.runLearningRound(domain, claimResult.task.subject, [claimResult.task.subject])
+				console.log("[DEBUG] runLearningRound called, waiting for promise...");
 					.then((roundResult) => {
+				console.log("[DEBUG] .then FIRED, conf=" + (roundResult?.confidence ?? "undef"));
+				console.log("[DEBUG] .then FIRED, confidence=" + (roundResult?.confidence ?? "undefined"));
 						if (roundResult && roundResult.confidence < 0.5) {
 							this.registry.markStuck(learnerName, claimResult.task.subject, {
 								confidence: roundResult.confidence,
@@ -149,6 +152,7 @@ export class BackgroundPool {
 						spawnNext(learnerIndex);
 					})
 					.catch((err) => {
+				console.log("[DEBUG] .catch FIRED, err=" + String(err));
 						this.registry.markStuck(learnerName, claimResult.task.subject, {
 							confidence: 0, findings: "", uncertainties: String(err),
 						});
@@ -257,6 +261,8 @@ export class BackgroundPool {
 		try {
 			const result = await learner.learn(domain, concepts);
 			const allConcepts = this.config.kg!.getAllConcepts();
+			console.log("[DEBUG] runLearningRound RETURNING, kgSize=" + allConcepts.length + ", concept=" + conceptName);
+			console.log("[DEBUG] runLearningRound RETURNING, kgSize=" + allConcepts.length + ", conceptName=" + conceptName);
 			const updated = allConcepts.find((c) => c.name.toLowerCase() === conceptName.toLowerCase());
 			return {
 				confidence: updated?.confidence ?? 0,
